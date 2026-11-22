@@ -171,11 +171,14 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:25px}
 
 </style>
 
+<link rel="icon" href="B-I-D-lux-Salon.jpg" type="image/jpeg">
 <link rel="apple-touch-icon" href="B-I-D-lux-Salon.jpg">
 
 </head>
 
 <body>
+
+<iframe id="biBridge" title="Salon booking connection" aria-hidden="true" tabindex="-1" style="display:none;width:0;height:0;border:0"></iframe>
 
 <header>
   <div>
@@ -185,7 +188,8 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:25px}
   <div style="font-size:10px;color:var(--lime)">BOOKING</div>
 </header>
 
-  
+<main>
+<section id="customerPage" class="container">
   <div class="notice">
     <strong>Before booking:</strong> Please contact B&I D'lux Salon first to discuss your service, hair or material requirements and agree on the labour price. Your appointment is not confirmed until the salon approves it.
   </div>
@@ -275,7 +279,7 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:25px}
 </section>
 
 <!-- PRIVATE ADMIN PAGE -->
-<section id="adminPage" class="hidden">
+<section id="adminPage" class="container hidden">
   <div id="loginSection" class="login-box">
     <div class="panel">
       <div class="eyebrow">PRIVATE OWNER ACCESS</div>
@@ -417,7 +421,7 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:25px}
 
       <div class="panel">
         <h2>Booking data</h2>
-        <p class="sub">Export a backup of your bookings. Data is stored in this browser.</p>
+        <p class="sub">Export a backup of your bookings. Data is stored centrally in the salon Google Sheet.</p>
         <button class="secondary" type="button" onclick="exportData()">EXPORT BOOKINGS</button>
         <button class="secondary" type="button" onclick="logout()">LOG OUT</button>
       </div>
@@ -430,709 +434,87 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:25px}
 <footer>B&I D'LUX SALON · WALK IN, SLAY OUT.</footer>
 
 <script>
-/* ==========================================================
-   OWNER SETUP
-   CHANGE THIS PIN BEFORE SHARING THE HTML FILE.
-   This is a simple local prototype, not secure authentication.
-========================================================== */
+'use strict';
 
-const OWNER_PIN = "1234567890";
-
-/* ==========================================================
-   LOCAL DATA
-========================================================== */
-
-const BOOKING_KEY = "bi_dlux_bookings_v3";
-const SETTINGS_KEY = "bi_dlux_settings_v3";
-const PASSWORD_KEY = "bi_dlux_admin_password_v3";
-const SETUP_KEY = "bi_dlux_admin_setup_v3";
-
-let bookings = loadBookings();
-let settings = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{"whatsapp":""}');
+const BRIDGE_URL = 'https://script.google.com/macros/s/AKfycbzXUEdcgPLrBtWGFsIw5qUEeMPH6BafXaZinOBmdPvcg3r08z0jLOiIr681Q1XTXEI_/exec';
+const BRIDGE_ORIGIN = '*';
+const bridgeFrame = document.getElementById('biBridge');
+let requestNumber = 0;
+const pendingRequests = new Map();
+let bookings = [];
+let settings = {whatsapp:''};
 let loggedIn = false;
-let pinVerified = false;
+let adminToken = '';
+let shownMonth = new Date(); shownMonth.setDate(1);
 
-function loadBookings(){
-  try {
-    return JSON.parse(localStorage.getItem(BOOKING_KEY) || "[]");
-  } catch(e) {
-    return [];
-  }
-}
-
-function saveBookings(){
-  localStorage.setItem(BOOKING_KEY,JSON.stringify(bookings));
-}
-
-function saveSettings(){
-  settings.whatsapp = $("salonNumber").value.trim();
-  localStorage.setItem(SETTINGS_KEY,JSON.stringify(settings));
-  alert("Settings saved.");
-}
-
-function $(id){return document.getElementById(id)}
-
-function escapeHTML(value){
-  return String(value ?? "").replace(/[&<>"']/g,c=>({
-    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
-  })[c]);
-}
-
-function localDateString(date){
-  return date.getFullYear()+"-"+String(date.getMonth()+1).padStart(2,"0")+"-"+String(date.getDate()).padStart(2,"0");
-}
-
-function today(){
-  return localDateString(new Date());
-}
-
-function dateLabel(date){
-  if(!date)return "";
-  return new Date(date+"T12:00:00").toLocaleDateString("en-UG",{
-    day:"numeric",month:"long",year:"numeric"
+function $(id){ return document.getElementById(id); }
+function apiRequest(action,payload={}){
+  return new Promise((resolve,reject)=>{
+    const requestId = 'bi-' + Date.now() + '-' + (++requestNumber);
+    const timeout = setTimeout(()=>{pendingRequests.delete(requestId);reject(new Error('The salon server did not respond. Please try again.'));},25000);
+    pendingRequests.set(requestId,{resolve,reject,timeout});
+    bridgeFrame.contentWindow.postMessage({source:'BI_SALON_WEBSITE',requestId,action,payload},BRIDGE_ORIGIN);
   });
 }
-
-function formatTime(time){
-  if(!time)return "";
-  let [h,m]=time.split(":").map(Number);
-  return (h%12||12)+":"+String(m).padStart(2,"0")+" "+(h>=12?"PM":"AM");
-}
-
-function activeOn(date){
-  return bookings.filter(b=>b.date===date && b.status!=="Cancelled");
-}
-
-function dayCount(date){
-  return activeOn(date).length;
-}
-
-function occupiedTimes(date,excludeId=null){
-  return activeOn(date)
-    .filter(b=>b.id!==excludeId)
-    .map(b=>b.time);
-}
-
-function availableTimes(date,excludeId=null){
-  if(!date)return [];
-  const occupied=occupiedTimes(date,excludeId);
-  const result=[];
-  for(let mins=420;mins<=1080;mins+=30){
-    const h=Math.floor(mins/60),m=mins%60;
-    const t=String(h).padStart(2,"0")+":"+String(m).padStart(2,"0");
-    if(!occupied.includes(t))result.push(t);
-  }
-  return result;
-}
-
-function fillTimes(date,select,excludeId=null){
-  select.innerHTML="";
-  if(!date){
-    select.innerHTML='<option value="">Select date first</option>';
-    return;
-  }
-  if(dayCount(date)-(excludeId?1:0)>=4){
-    select.innerHTML='<option value="">This date is fully booked</option>';
-    return;
-  }
-  select.innerHTML='<option value="">Choose a time</option>';
-  availableTimes(date,excludeId).forEach(t=>{
-    const option=document.createElement("option");
-    option.value=t;
-    option.textContent=formatTime(t);
-    select.appendChild(option);
-  });
-}
-
-/* ==========================================================
-   CUSTOMER CALENDAR
-========================================================== */
-
-let shownMonth=new Date();
-shownMonth.setDate(1);
-
-function drawCalendar(){
-  const calendar=$("calendar");
-  calendar.innerHTML="";
-  ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].forEach(d=>{
-    const el=document.createElement("div");
-    el.className="weekday";
-    el.textContent=d;
-    calendar.appendChild(el);
-  });
-
-  const year=shownMonth.getFullYear();
-  const month=shownMonth.getMonth();
-  $("monthLabel").textContent=shownMonth.toLocaleDateString("en-UG",{month:"long",year:"numeric"});
-
-  const firstDay=new Date(year,month,1).getDay();
-  const lastDay=new Date(year,month+1,0).getDate();
-
-  for(let i=0;i<firstDay;i++){
-    const blank=document.createElement("div");
-    calendar.appendChild(blank);
-  }
-
-  for(let day=1;day<=lastDay;day++){
-    const date=localDateString(new Date(year,month,day));
-    const count=dayCount(date);
-    const past=date<today();
-    const full=count>=4;
-    const button=document.createElement("button");
-    button.type="button";
-    button.className="day";
-    button.textContent=day;
-
-    if(full)button.classList.add("full-day");
-    else if(past)button.classList.add("past");
-    else button.classList.add("available");
-
-    if($("selectedDate").value===date)button.classList.add("selected");
-
-    button.disabled=past||full;
-    button.title=past?"Past date":full?"Fully booked":"Available: "+(4-count)+" appointment(s) remaining";
-
-    button.addEventListener("click",()=>{
-      $("selectedDate").value=date;
-      $("calendarNote").textContent=dateLabel(date)+" — "+(4-count)+" appointment slot(s) remaining.";
-      fillTimes(date,$("time"));
-      drawCalendar();
-    });
-
-    calendar.appendChild(button);
-  }
-}
-
-$("prevMonth").addEventListener("click",()=>{
-  const now=new Date();
-  const firstCurrent=new Date(now.getFullYear(),now.getMonth(),1);
-  const candidate=new Date(shownMonth.getFullYear(),shownMonth.getMonth()-1,1);
-  if(candidate>=firstCurrent){
-    shownMonth=candidate;
-    drawCalendar();
-  }
+window.addEventListener('message',event=>{
+  if(event.source!==bridgeFrame.contentWindow || !(event.origin==='https://script.google.com' || event.origin.endsWith('.googleusercontent.com'))) return;
+  const m=event.data;
+  if(!m || m.source!=='BI_SALON_BRIDGE' || !pendingRequests.has(m.requestId)) return;
+  const p=pendingRequests.get(m.requestId); pendingRequests.delete(m.requestId); clearTimeout(p.timeout);
+  if(m.error) p.reject(new Error(m.error)); else p.resolve(m.result);
 });
+bridgeFrame.src=BRIDGE_URL;
 
-$("nextMonth").addEventListener("click",()=>{
-  shownMonth=new Date(shownMonth.getFullYear(),shownMonth.getMonth()+1,1);
-  drawCalendar();
-});
-
+function escapeHTML(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function localDateString(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function today(){return localDateString(new Date());}
+function dateLabel(date){return date?new Date(date+'T12:00:00').toLocaleDateString('en-UG',{day:'numeric',month:'long',year:'numeric'}):'';}
+function formatTime(time){if(!time)return '';let [h,m]=time.split(':').map(Number);return (h%12||12)+':'+String(m).padStart(2,'0')+' '+(h>=12?'PM':'AM');}
+function makeId(){return 'BI-'+Date.now()+'-'+Math.floor(Math.random()*10000);}
+function activeOn(date){return bookings.filter(b=>b.date===date&&b.status!=='Cancelled');}
+function dayCount(date){return activeOn(date).length;}
+function occupiedTimes(date,excludeId=null){return activeOn(date).filter(b=>String(b.id)!==String(excludeId)).map(b=>b.time);}
+function availableTimes(date,excludeId=null){if(!date)return [];let occupied=occupiedTimes(date,excludeId);let result=[];for(let mins=420;mins<=1080;mins+=30){let h=Math.floor(mins/60),m=mins%60,t=String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');if(!occupied.includes(t))result.push(t);}return result;}
+function fillTimes(date,select,excludeId=null){select.innerHTML='';if(!date){select.innerHTML='<option value="">Select date first</option>';return;}if(dayCount(date)-(excludeId?1:0)>=4){select.innerHTML='<option value="">This date is fully booked</option>';return;}select.innerHTML='<option value="">Choose a time</option>';availableTimes(date,excludeId).forEach(t=>{let o=document.createElement('option');o.value=t;o.textContent=formatTime(t);select.appendChild(o);});}
+function drawCalendar(){const calendar=$('calendar');calendar.innerHTML='';['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(d=>{let el=document.createElement('div');el.className='weekday';el.textContent=d;calendar.appendChild(el);});let y=shownMonth.getFullYear(),m=shownMonth.getMonth();$('monthLabel').textContent=shownMonth.toLocaleDateString('en-UG',{month:'long',year:'numeric'});let first=new Date(y,m,1).getDay(),last=new Date(y,m+1,0).getDate();for(let i=0;i<first;i++)calendar.appendChild(document.createElement('div'));for(let day=1;day<=last;day++){let date=localDateString(new Date(y,m,day)),count=dayCount(date),past=date<today(),full=count>=4,b=document.createElement('button');b.type='button';b.className='day';b.textContent=day;if(full)b.classList.add('full-day');else if(past)b.classList.add('past');else b.classList.add('available');if($('selectedDate').value===date)b.classList.add('selected');b.disabled=past||full;b.title=past?'Past date':full?'Fully booked':'Available: '+(4-count)+' appointment(s) remaining';b.addEventListener('click',()=>{$('selectedDate').value=date;$('calendarNote').textContent=dateLabel(date)+' — '+(4-count)+' appointment slot(s) remaining.';fillTimes(date,$('time'));drawCalendar();});calendar.appendChild(b);}}
+$('prevMonth').addEventListener('click',()=>{let now=new Date(),min=new Date(now.getFullYear(),now.getMonth(),1),candidate=new Date(shownMonth.getFullYear(),shownMonth.getMonth()-1,1);if(candidate>=min){shownMonth=candidate;drawCalendar();}});
+$('nextMonth').addEventListener('click',()=>{shownMonth=new Date(shownMonth.getFullYear(),shownMonth.getMonth()+1,1);drawCalendar();});
 drawCalendar();
 
-/* ==========================================================
-   CUSTOMER BOOKING SUBMISSION
-========================================================== */
-
-$("bookingForm").addEventListener("submit",e=>{
-  e.preventDefault();
-
-  const date=$("selectedDate").value;
-  const time=$("time").value;
-  const price=Number($("price").value);
-
-  if(!date){alert("Please select an appointment date on the calendar.");return}
-  if(date<today()){alert("Please select today or a future date.");return}
-  if(!time){alert("Please select an available appointment time.");return}
-  if(!Number.isFinite(price)||price<0){alert("Enter a valid labour price.");return}
-  if(dayCount(date)>=4){alert("Sorry, this date has reached four appointments.");drawCalendar();return}
-  if(occupiedTimes(date).includes(time)){
-    alert("That time has just been booked. Please select another time.");
-    fillTimes(date,$("time"));
-    return;
-  }
-  if(!$("discussion").checked){
-    alert("Please confirm that you discussed the service and price with the salon.");
-    return;
-  }
-
-  const booking={
-    id:makeId(),
-    name:$("customerName").value.trim(),
-    phone:$("customerPhone").value.trim(),
-    service:$("service").value.trim(),
-    price:price,
-    date:date,
-    time:time,
-    notes:$("notes").value.trim(),
-    discussion:true,
-    status:"Pending",
-    payment:"Outstanding",
-    paid:0,
-    created:new Date().toISOString()
-  };
-
-  bookings.push(booking);
-  saveBookings();
-
-  $("bookingForm").classList.add("hidden");
-  $("success").style.display="block";
-  $("successText").textContent=
-    booking.name+" — "+dateLabel(date)+" at "+formatTime(time)+
-    ". Labour price: UGX "+price.toLocaleString()+".";
-  drawCalendar();
-});
-
-function resetForm(){
-  $("bookingForm").reset();
-  $("bookingForm").classList.remove("hidden");
-  $("success").style.display="none";
-  $("selectedDate").value="";
-  $("time").innerHTML='<option value="">Select a date first</option>';
-  $("calendarNote").textContent="Select an available date.";
-  drawCalendar();
-}
-
-function makeId(){
-  return "BI-"+Date.now()+"-"+Math.floor(Math.random()*10000);
-}
-
-/* ==========================================================
-   HIDDEN ADMIN ENTRY
-   Tap the salon logo five times.
-========================================================== */
-
-let logoTaps=0;
-let tapTimer;
-
-$("brand").addEventListener("click",()=>{
-  logoTaps++;
-  clearTimeout(tapTimer);
-  tapTimer=setTimeout(()=>logoTaps=0,1800);
-
-  if(logoTaps>=5){
-    logoTaps=0;
-    showAdmin();
-  }
-});
-
-function showAdmin(){
-  $("customerPage").classList.add("hidden");
-  $("adminPage").classList.remove("hidden");
-  showLoginScreen();
-}
-
-function showCustomer(){
-  $("adminPage").classList.add("hidden");
-  $("customerPage").classList.remove("hidden");
-}
-
-function showLoginScreen(){
-  $("loginSection").classList.remove("hidden");
-  $("dashboard").classList.add("hidden");
-  $("loginInput").value="";
-  pinVerified=false;
-  loggedIn=false;
-
-  const setup=localStorage.getItem(SETUP_KEY)==="yes";
-  if(!setup){
-    $("loginTitle").textContent="Owner verification";
-    $("loginDescription").textContent="Enter your private owner PIN before creating your admin password.";
-    $("loginLabel").textContent="Owner PIN";
-    $("loginButton").textContent="VERIFY PIN";
-    $("loginInput").placeholder="Enter owner PIN";
-    $("loginHint").textContent="Only the owner with the correct PIN can create the first admin password.";
-  }else{
-    $("loginTitle").textContent="Admin login";
-    $("loginDescription").textContent="Enter your admin password.";
-    $("loginLabel").textContent="Admin password";
-    $("loginButton").textContent="LOGIN";
-    $("loginInput").placeholder="Enter admin password";
-    $("loginHint").textContent="Private administration access.";
-  }
-}
-
-$("loginForm").addEventListener("submit",e=>{
-  e.preventDefault();
-  const entered=$("loginInput").value;
-
-  if(localStorage.getItem(SETUP_KEY)!=="yes"){
-    if(entered!==OWNER_PIN){
-      alert("Incorrect owner PIN. Admin setup is not permitted.");
-      $("loginInput").value="";
-      return;
-    }
-
-    pinVerified=true;
-    const newPass=prompt("PIN verified. Create your admin password (at least 8 characters):");
-    if(newPass===null)return;
-    if(newPass.length<8){
-      alert("Your admin password must contain at least 8 characters.");
-      return;
-    }
-
-    localStorage.setItem(PASSWORD_KEY,newPass);
-    localStorage.setItem(SETUP_KEY,"yes");
-    alert("Admin password created. You can now log in.");
-    showLoginScreen();
-    return;
-  }
-
-  const saved=localStorage.getItem(PASSWORD_KEY);
-  if(entered!==saved){
-    alert("Incorrect admin password.");
-    $("loginInput").value="";
-    return;
-  }
-
-  loggedIn=true;
-  $("loginSection").classList.add("hidden");
-  $("dashboard").classList.remove("hidden");
-  $("salonNumber").value=settings.whatsapp||"";
-  renderDashboard();
-});
-
-function logout(){
-  loggedIn=false;
-  showCustomer();
-}
-
-/* ==========================================================
-   ADMIN NAVIGATION
-========================================================== */
-
-document.querySelectorAll(".admin-nav button").forEach(btn=>{
-  btn.addEventListener("click",()=>{
-    document.querySelectorAll(".admin-nav button").forEach(b=>b.classList.remove("active"));
-    btn.classList.add("active");
-
-    ["bookings","followups","calendar","add","settings"].forEach(name=>{
-      $("admin"+name.charAt(0).toUpperCase()+name.slice(1))
-        .classList.toggle("hidden",name!==btn.dataset.section);
-    });
-    renderDashboard();
-  });
-});
-
-$("filter").addEventListener("change",renderBookings);
-
-function renderDashboard(){
-  if(!loggedIn)return;
-
-  $("totalStat").textContent=bookings.filter(b=>b.status!=="Cancelled").length;
-  $("pendingStat").textContent=bookings.filter(b=>b.status==="Pending").length;
-  $("followStat").textContent=bookings.filter(b=>b.status==="Follow-up required").length;
-  $("confirmedStat").textContent=bookings.filter(b=>b.status==="Confirmed").length;
-
-  renderBookings();
-  renderFollowups();
-  renderAdminCalendar();
-}
-
-const STATUSES=[
-  "Pending","Follow-up required","Confirmed",
-  "Rescheduled","Cancelled","Completed"
-];
-
-function bookingCard(b){
-  const phone=String(b.phone||"").replace(/\D/g,"");
-  const wa=phone.startsWith("0")?"256"+phone.slice(1):phone;
-  const msg=encodeURIComponent(
-    "Hello "+b.name+", this is B&I D'lux Salon. Your appointment status is "+b.status+
-    ". Service: "+b.service+". Date: "+dateLabel(b.date)+
-    ". Time: "+formatTime(b.time)+". Thank you."
-  );
-
-  return `
-  <div class="booking">
-    <div class="booking-top">
-      <div>
-        <h3>${escapeHTML(b.name)}</h3>
-        <p>${escapeHTML(b.phone)}</p>
-        <p>${escapeHTML(b.service)}</p>
-      </div>
-      <span class="status ${escapeHTML(b.status)}">${escapeHTML(b.status)}</span>
-    </div>
-
-    <p><strong>Date:</strong> ${dateLabel(b.date)} · ${formatTime(b.time)}</p>
-    <p><strong>Agreed labour price:</strong> <span class="amount">UGX ${Number(b.price).toLocaleString()}</span></p>
-    <p><strong>Payment:</strong> ${escapeHTML(b.payment||"Outstanding")}</p>
-    <p><strong>Paid:</strong> UGX ${Number(b.paid||0).toLocaleString()}</p>
-    <p><strong>Balance:</strong> UGX ${Math.max(0,Number(b.price)-Number(b.paid||0)).toLocaleString()}</p>
-    <p><strong>Discussed with salon:</strong> ${b.discussion?"Yes":"Not confirmed"}</p>
-    <p><strong>Notes:</strong> ${escapeHTML(b.notes||"None")}</p>
-
-    <div class="booking-actions">
-      <a class="small-btn" href="tel:${escapeHTML(b.phone)}">Call</a>
-      <a class="small-btn" target="_blank" rel="noopener" href="https://wa.me/${encodeURIComponent(wa)}?text=${msg}">WhatsApp</a>
-      <button class="small-btn" onclick="editBooking('${b.id}')">Edit</button>
-      <select class="status-select" aria-label="Change booking status" onchange="setStatus('${b.id}',this.value)">
-        ${STATUSES.map(s=>`<option value="${s}" ${b.status===s?"selected":""}>${s}</option>`).join("")}
-      </select>
-      <button class="small-btn" onclick="updatePayment('${b.id}')">Payment</button>
-      <button class="small-btn" onclick="notifyCustomer('${b.id}')">Notify</button>
-      <button class="danger" onclick="deleteBooking('${b.id}')">Delete</button>
-    </div>
-  </div>`;
-}
-
-function renderBookings(){
-  const filter=$("filter").value;
-  const list=bookings.filter(b=>filter==="All"||b.status===filter)
-    .sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
-
-  $("bookingList").innerHTML=list.length
-    ?list.map(bookingCard).join("")
-    :'<div class="empty">No bookings found.</div>';
-}
-
-function renderFollowups(){
-  const list=bookings.filter(b=>b.status==="Follow-up required");
-  $("followupList").innerHTML=list.length
-    ?list.map(bookingCard).join("")
-    :'<div class="empty">No customers awaiting follow-up.</div>';
-}
-
-function renderAdminCalendar(){
-  const date=$("adminDate").value;
-  if(!date){
-    $("adminDateResults").innerHTML='<div class="empty">Select a date.</div>';
-    return;
-  }
-  const list=activeOn(date).sort((a,b)=>a.time.localeCompare(b.time));
-  $("adminDateResults").innerHTML=
-    `<p class="amount">${list.length} of 4 appointments</p>`+
-    (list.length?list.map(bookingCard).join(""):'<div class="empty">No appointments on this date.</div>');
-}
-
-$("adminDate").value=today();
-$("adminDate").addEventListener("change",renderAdminCalendar);
-
-/* ==========================================================
-   CHANGE STATUS WITH A CLICKABLE SELECTOR
-========================================================== */
-
-function setStatus(id,newStatus){
-  const b=bookings.find(x=>x.id===id);
-  if(!b||!STATUSES.includes(newStatus))return;
-
-  if(newStatus==="Cancelled"){
-    if(!confirm("Cancel this appointment? Its time slot will become available.")){
-      renderDashboard();
-      return;
-    }
-  }
-
-  b.status=newStatus;
-  saveBookings();
-  renderDashboard();
-}
-
-/* ==========================================================
-   EDIT BOOKING
-========================================================== */
-
-function editBooking(id){
-  const b=bookings.find(x=>x.id===id);
-  if(!b)return;
-
-  const name=prompt("Customer name:",b.name);
-  if(name===null)return;
-  const phone=prompt("Customer phone:",b.phone);
-  if(phone===null)return;
-  const service=prompt("Requested service:",b.service);
-  if(service===null)return;
-  const price=prompt("Labour price (UGX):",b.price);
-  if(price===null)return;
-  const date=prompt("Date (YYYY-MM-DD):",b.date);
-  if(date===null)return;
-  const time=prompt("Time (HH:MM):",b.time);
-  if(time===null)return;
-  const notes=prompt("Notes:",b.notes||"");
-  if(notes===null)return;
-
-  if(!name.trim()||!service.trim()||!Number.isFinite(Number(price))||Number(price)<0){
-    alert("Please enter valid customer, service and price details.");
-    return;
-  }
-
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||
-     !/^(0[7-9]|1[0-7]):(00|30)$|^18:00$/.test(time)){
-    alert("Use a valid date and a time from 07:00 to 18:00, in 30-minute intervals.");
-    return;
-  }
-
-  if(activeOn(date).some(x=>x.id!==id&&x.time===time)){
-    alert("That exact appointment time is already occupied.");
-    return;
-  }
-
-  if(date!==b.date&&activeOn(date).length>=4){
-    alert("That date has reached the four-appointment limit.");
-    return;
-  }
-
-  b.name=name.trim();
-  b.phone=phone.trim();
-  b.service=service.trim();
-  b.price=Number(price);
-  b.date=date;
-  b.time=time;
-  b.notes=notes;
-  b.status="Rescheduled";
-
-  saveBookings();
-  renderDashboard();
-  drawCalendar();
-}
-
-/* ==========================================================
-   DELETE BOOKING
-========================================================== */
-
-function deleteBooking(id){
-  if(!confirm("Permanently delete this booking? This cannot be undone."))return;
-  bookings=bookings.filter(b=>b.id!==id);
-  saveBookings();
-  renderDashboard();
-  drawCalendar();
-}
-
-/* ==========================================================
-   PAYMENT TRACKING
-========================================================== */
-
-function updatePayment(id){
-  const b=bookings.find(x=>x.id===id);
-  if(!b)return;
-
-  const amount=prompt("Enter total amount paid so far (UGX):",b.paid||0);
-  if(amount===null)return;
-
-  const paid=Number(amount);
-  if(!Number.isFinite(paid)||paid<0){
-    alert("Enter a valid payment amount.");
-    return;
-  }
-
-  b.paid=paid;
-  b.payment=paid===0?"Outstanding":
-    paid>=Number(b.price)?"Cleared":"Partially cleared";
-
-  saveBookings();
-  renderDashboard();
-}
-
-/* ==========================================================
-   WHATSAPP NOTIFICATIONS
-========================================================== */
-
-function notifyCustomer(id){
-  const b=bookings.find(x=>x.id===id);
-  if(!b)return;
-
-  const messages={
-    "Pending":"We have received your booking request and will contact you shortly.",
-    "Follow-up required":"We would like to follow up with you about your appointment.",
-    "Confirmed":"Your appointment has been confirmed.",
-    "Rescheduled":"Your appointment has been rescheduled.",
-    "Cancelled":"Your appointment has been cancelled. Please contact us if you need assistance.",
-    "Completed":"Thank you for visiting B&I D'lux Salon. We hope you loved your look!"
-  };
-
-  const message=
-    "Hello "+b.name+",\n\n"+messages[b.status]+"\n\n"+
-    "Service: "+b.service+"\n"+
-    "Date: "+dateLabel(b.date)+"\n"+
-    "Time: "+formatTime(b.time)+"\n"+
-    "Agreed labour price: UGX "+Number(b.price).toLocaleString()+
-    "\n\nB&I D'lux Salon — Walk In, Slay Out.";
-
-  const phone=String(b.phone).replace(/\D/g,"");
-  const international=phone.startsWith("0")?"256"+phone.slice(1):phone;
-
-  window.open("https://wa.me/"+encodeURIComponent(international)+
-    "?text="+encodeURIComponent(message),"_blank");
-}
-
-/* ==========================================================
-   MANUAL ADMIN BOOKING
-========================================================== */
-
-$("mDate").min=today();
-
-$("mDate").addEventListener("change",()=>{
-  fillTimes($("mDate").value,$("mTime"));
-});
-
-$("manualForm").addEventListener("submit",e=>{
-  e.preventDefault();
-
-  const date=$("mDate").value;
-  const time=$("mTime").value;
-
-  if(!date||!time){alert("Choose an available date and time.");return}
-  if(date<today()){alert("Choose today or a future date.");return}
-  if(activeOn(date).some(b=>b.time===time)){
-    alert("That exact time is already booked.");
-    fillTimes(date,$("mTime"));
-    return;
-  }
-
-  if(activeOn(date).length>=4){
-    if(!confirm("This date already has four appointments. Add an extra manual booking anyway?"))return;
-  }
-
-  bookings.push({
-    id:makeId(),
-    name:$("mName").value.trim(),
-    phone:$("mPhone").value.trim(),
-    service:$("mService").value.trim(),
-    price:Number($("mPrice").value),
-    date,time,
-    notes:$("mNotes").value.trim(),
-    discussion:false,
-    status:$("mStatus").value,
-    payment:"Outstanding",
-    paid:0,
-    created:new Date().toISOString()
-  });
-
-  saveBookings();
-  $("manualForm").reset();
-  $("mDate").min=today();
-  $("mTime").innerHTML='<option value="">Select date first</option>';
-  renderDashboard();
-  drawCalendar();
-  alert("Booking saved.");
-});
-
-/* ==========================================================
-   ADMIN PASSWORD AND EXPORT
-========================================================== */
-
-function changePassword(){
-  const old=$("oldPassword").value;
-  const next=$("newPassword").value;
-
-  if(old!==localStorage.getItem(PASSWORD_KEY)){
-    alert("Current password is incorrect.");
-    return;
-  }
-  if(next.length<8){
-    alert("New password must contain at least 8 characters.");
-    return;
-  }
-
-  localStorage.setItem(PASSWORD_KEY,next);
-  $("oldPassword").value="";
-  $("newPassword").value="";
-  alert("Admin password updated.");
-}
-
-function exportData(){
-  const blob=new Blob([JSON.stringify(bookings,null,2)],{type:"application/json"});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement("a");
-  a.href=url;
-  a.download="BI-Dlux-bookings-backup.json";
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-/* Initial setup */
+$('bookingForm').addEventListener('submit',async e=>{e.preventDefault();let date=$('selectedDate').value,time=$('time').value,price=Number($('price').value);if(!date){alert('Please select an appointment date.');return;}if(date<today()){alert('Please select today or a future date.');return;}if(!time){alert('Please select an available appointment time.');return;}if(!Number.isFinite(price)||price<0){alert('Enter a valid labour price.');return;}if(!$('discussion').checked){alert('Please confirm that you discussed the service and price with the salon.');return;}let booking={id:makeId(),name:$('customerName').value.trim(),phone:$('customerPhone').value.trim(),service:$('service').value.trim(),price,date,time,notes:$('notes').value.trim(),discussion:true,status:'Pending',payment:'Outstanding',paid:0,created:new Date().toISOString()};let btn=$('bookingForm').querySelector('button[type="submit"]');btn.disabled=true;btn.textContent='SENDING REQUEST…';try{await apiRequest('submitBooking',{booking});$('bookingForm').classList.add('hidden');$('success').style.display='block';$('successText').textContent=booking.name+' — '+dateLabel(date)+' at '+formatTime(time)+'. Labour price: UGX '+price.toLocaleString()+'.';}catch(err){alert('Your booking was not submitted. '+err.message+' Please try again or contact the salon.');}finally{btn.disabled=false;btn.textContent='SUBMIT BOOKING REQUEST →';}});
+function resetForm(){$('bookingForm').reset();$('bookingForm').classList.remove('hidden');$('success').style.display='none';$('selectedDate').value='';$('time').innerHTML='<option value="">Select a date first</option>';$('calendarNote').textContent='Select an available date.';drawCalendar();}
+
+let headerTaps=0,headerTapTimer;
+document.querySelector('header').addEventListener('click',()=>{headerTaps++;clearTimeout(headerTapTimer);headerTapTimer=setTimeout(()=>headerTaps=0,2200);if(headerTaps>=5){headerTaps=0;showAdmin();}});
+function showAdmin(){$('customerPage').classList.add('hidden');$('adminPage').classList.remove('hidden');showLoginScreen();window.scrollTo(0,0);}
+function showCustomer(){$('adminPage').classList.add('hidden');$('customerPage').classList.remove('hidden');window.scrollTo(0,0);}
+function showLoginScreen(){$('loginSection').classList.remove('hidden');$('dashboard').classList.add('hidden');$('loginInput').value='';loggedIn=false;adminToken='';}
+$('loginForm').addEventListener('submit',async e=>{e.preventDefault();let btn=$('loginButton');btn.disabled=true;btn.textContent='VERIFYING…';try{let result=await apiRequest('login',{password:$('loginInput').value});adminToken=typeof result==='string'?result:(result&& (result.token||result.sessionToken));if(!adminToken)throw new Error('The server did not return an admin session. Check the Apps Script login function.');loggedIn=true;let [rows,s]=await Promise.all([apiRequest('listBookings',{token:adminToken}),apiRequest('getSettings',{token:adminToken})]);bookings=normalizeBookings(rows);settings=s||{whatsapp:''};$('loginSection').classList.add('hidden');$('dashboard').classList.remove('hidden');$('salonNumber').value=settings.whatsapp||'';renderDashboard();}catch(err){adminToken='';loggedIn=false;alert('Login failed: '+err.message);$('loginInput').value='';}finally{btn.disabled=false;btn.textContent='LOGIN';}});
+function normalizeBookings(rows){if(!Array.isArray(rows))return [];return rows.map(r=>({...r,id:String(r.id||r.bookingId||r['Booking ID']||''),name:r.name||r.Name||'',phone:r.phone||r.Phone||'',service:r.service||r.Service||'',price:Number(r.price||r.Price||0),date:r.date||r.Date||'',time:r.time||r.Time||'',notes:r.notes||r.Notes||'',discussion:r.discussion===true||String(r.discussion).toLowerCase()==='true',status:r.status||r.Status||'Pending',payment:r.payment||r.Payment||'Outstanding',paid:Number(r.paid||r.Paid||0)}));}
+async function refreshBookings(){let rows=await apiRequest('listBookings',{token:adminToken});bookings=normalizeBookings(rows);renderDashboard();drawCalendar();}
+async function logout(){try{adminToken='';loggedIn=false;showCustomer();}catch(e){showCustomer();}}
+
+document.querySelectorAll('.admin-nav button').forEach(btn=>btn.addEventListener('click',()=>{document.querySelectorAll('.admin-nav button').forEach(b=>b.classList.remove('active'));btn.classList.add('active');['bookings','followups','calendar','add','settings'].forEach(n=>$('admin'+n.charAt(0).toUpperCase()+n.slice(1)).classList.toggle('hidden',n!==btn.dataset.section));renderDashboard();}));
+$('filter').addEventListener('change',renderBookings);
+function renderDashboard(){if(!loggedIn)return;$('totalStat').textContent=bookings.filter(b=>b.status!=='Cancelled').length;$('pendingStat').textContent=bookings.filter(b=>b.status==='Pending').length;$('followStat').textContent=bookings.filter(b=>b.status==='Follow-up required').length;$('confirmedStat').textContent=bookings.filter(b=>b.status==='Confirmed').length;renderBookings();renderFollowups();renderAdminCalendar();}
+const STATUSES=['Pending','Follow-up required','Confirmed','Rescheduled','Cancelled','Completed'];
+function bookingCard(b){let phone=String(b.phone||'').replace(/\D/g,''),wa=phone.startsWith('0')?'256'+phone.slice(1):phone,msg=encodeURIComponent('Hello '+b.name+', this is B&I D\'lux Salon. Your appointment status is '+b.status+'. Service: '+b.service+'. Date: '+dateLabel(b.date)+'. Time: '+formatTime(b.time)+'. Thank you.');return `<div class="booking"><div class="booking-top"><div><h3>${escapeHTML(b.name)}</h3><p>${escapeHTML(b.phone)}</p><p>${escapeHTML(b.service)}</p></div><span class="status ${escapeHTML(b.status)}">${escapeHTML(b.status)}</span></div><p><strong>Date:</strong> ${dateLabel(b.date)} · ${formatTime(b.time)}</p><p><strong>Agreed labour price:</strong> <span class="amount">UGX ${Number(b.price).toLocaleString()}</span></p><p><strong>Payment:</strong> ${escapeHTML(b.payment||'Outstanding')}</p><p><strong>Paid:</strong> UGX ${Number(b.paid||0).toLocaleString()}</p><p><strong>Balance:</strong> UGX ${Math.max(0,Number(b.price)-Number(b.paid||0)).toLocaleString()}</p><p><strong>Discussed with salon:</strong> ${b.discussion?'Yes':'Not confirmed'}</p><p><strong>Notes:</strong> ${escapeHTML(b.notes||'None')}</p><div class="booking-actions"><a class="small-btn" href="tel:${escapeHTML(b.phone)}">Call</a><a class="small-btn" target="_blank" rel="noopener" href="https://wa.me/${encodeURIComponent(wa)}?text=${msg}">WhatsApp</a><button class="small-btn" onclick="editBooking('${escapeHTML(b.id)}')">Edit</button><select class="status-select" aria-label="Change booking status" onchange="setStatus('${escapeHTML(b.id)}',this.value)">${STATUSES.map(s=>`<option value="${s}" ${b.status===s?'selected':''}>${s}</option>`).join('')}</select><button class="small-btn" onclick="updatePayment('${escapeHTML(b.id)}')">Payment</button><button class="small-btn" onclick="notifyCustomer('${escapeHTML(b.id)}')">Notify</button><button class="danger" onclick="deleteBooking('${escapeHTML(b.id)}')">Delete</button></div></div>`;}
+function renderBookings(){let f=$('filter').value,list=bookings.filter(b=>f==='All'||b.status===f).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));$('bookingList').innerHTML=list.length?list.map(bookingCard).join(''):'<div class="empty">No bookings found.</div>';}
+function renderFollowups(){let list=bookings.filter(b=>b.status==='Follow-up required');$('followupList').innerHTML=list.length?list.map(bookingCard).join(''):'<div class="empty">No customers awaiting follow-up.</div>';}
+function renderAdminCalendar(){let date=$('adminDate').value;if(!date){$('adminDateResults').innerHTML='<div class="empty">Select a date.</div>';return;}let list=activeOn(date).sort((a,b)=>a.time.localeCompare(b.time));$('adminDateResults').innerHTML=`<p class="amount">${list.length} of 4 appointments</p>`+(list.length?list.map(bookingCard).join(''):'<div class="empty">No appointments on this date.</div>');}
+$('adminDate').value=today();$('adminDate').addEventListener('change',renderAdminCalendar);
+async function setStatus(id,newStatus){let b=bookings.find(x=>x.id===id);if(!b||!STATUSES.includes(newStatus))return;if(newStatus==='Cancelled'&&!confirm('Cancel this appointment? Its time slot will become available.')){renderDashboard();return;}try{await apiRequest('updateBooking',{token:adminToken,id,changes:{status:newStatus}});b.status=newStatus;renderDashboard();}catch(e){alert('Could not update status: '+e.message);await refreshBookings();}}
+async function editBooking(id){let b=bookings.find(x=>x.id===id);if(!b)return;let name=prompt('Customer name:',b.name);if(name===null)return;let phone=prompt('Customer phone:',b.phone);if(phone===null)return;let service=prompt('Requested service:',b.service);if(service===null)return;let price=prompt('Labour price (UGX):',b.price);if(price===null)return;let date=prompt('Date (YYYY-MM-DD):',b.date);if(date===null)return;let time=prompt('Time (HH:MM):',b.time);if(time===null)return;let notes=prompt('Notes:',b.notes||'');if(notes===null)return;if(!name.trim()||!service.trim()||!Number.isFinite(Number(price))||Number(price)<0||!/^\d{4}-\d{2}-\d{2}$/.test(date)||! /^(0[7-9]|1[0-7]):(00|30)$|^18:00$/.test(time)){alert('Please enter valid details and a time from 07:00 to 18:00.');return;}if(activeOn(date).some(x=>x.id!==id&&x.time===time)){alert('That appointment time is already occupied in the loaded bookings.');return;}try{await apiRequest('updateBooking',{token:adminToken,id,changes:{name:name.trim(),phone:phone.trim(),service:service.trim(),price:Number(price),date,time,notes,status:'Rescheduled'}});await refreshBookings();}catch(e){alert('Could not save changes: '+e.message);}}
+async function deleteBooking(id){if(!confirm('Permanently delete this booking? This cannot be undone.'))return;try{await apiRequest('deleteBooking',{token:adminToken,id});bookings=bookings.filter(b=>b.id!==id);renderDashboard();drawCalendar();}catch(e){alert('Could not delete booking: '+e.message);}}
+async function updatePayment(id){let b=bookings.find(x=>x.id===id);if(!b)return;let amount=prompt('Enter total amount paid so far (UGX):',b.paid||0);if(amount===null)return;let paid=Number(amount);if(!Number.isFinite(paid)||paid<0){alert('Enter a valid payment amount.');return;}let payment=paid===0?'Outstanding':paid>=Number(b.price)?'Cleared':'Partially cleared';try{await apiRequest('updateBooking',{token:adminToken,id,changes:{paid,payment}});b.paid=paid;b.payment=payment;renderDashboard();}catch(e){alert('Could not update payment: '+e.message);}}
+function notifyCustomer(id){let b=bookings.find(x=>x.id===id);if(!b)return;let messages={'Pending':'We have received your booking request and will contact you shortly.','Follow-up required':'We would like to follow up with you about your appointment.','Confirmed':'Your appointment has been confirmed.','Rescheduled':'Your appointment has been rescheduled.','Cancelled':'Your appointment has been cancelled. Please contact us if you need assistance.','Completed':'Thank you for visiting B&I D\'lux Salon. We hope you loved your look!'};let message='Hello '+b.name+',\n\n'+messages[b.status]+'\n\nService: '+b.service+'\nDate: '+dateLabel(b.date)+'\nTime: '+formatTime(b.time)+'\nAgreed labour price: UGX '+Number(b.price).toLocaleString()+'\n\nB&I D\'lux Salon — Walk In, Slay Out.';let phone=String(b.phone||'').replace(/\D/g,''),international=phone.startsWith('0')?'256'+phone.slice(1):phone;window.open('https://wa.me/'+encodeURIComponent(international)+'?text='+encodeURIComponent(message),'_blank');}
+$('mDate').min=today();$('mDate').addEventListener('change',()=>fillTimes($('mDate').value,$('mTime')));
+$('manualForm').addEventListener('submit',async e=>{e.preventDefault();let date=$('mDate').value,time=$('mTime').value;if(!date||!time){alert('Choose a date and time.');return;}if(date<today()){alert('Choose today or a future date.');return;}let booking={id:makeId(),name:$('mName').value.trim(),phone:$('mPhone').value.trim(),service:$('mService').value.trim(),price:Number($('mPrice').value),date,time,notes:$('mNotes').value.trim(),discussion:false,status:$('mStatus').value,payment:'Outstanding',paid:0,created:new Date().toISOString()};try{await apiRequest('submitBooking',{booking});$('manualForm').reset();$('mDate').min=today();$('mTime').innerHTML='<option value="">Select date first</option>';await refreshBookings();alert('Booking saved to the central salon records.');}catch(err){alert('Could not save booking: '+err.message);}});
+async function saveSettings(){settings.whatsapp=$('salonNumber').value.trim();try{await apiRequest('saveSettings',{token:adminToken,settings});alert('Settings saved centrally.');}catch(e){alert('Could not save settings: '+e.message);}}
+async function changePassword(){let next=$('newPassword').value;if(next.length<8){alert('New password must contain at least 8 characters.');return;}try{await apiRequest('changePassword',{token:adminToken,newPassword:next});$('oldPassword').value='';$('newPassword').value='';alert('Admin password updated. Please log in again next time.');}catch(e){alert('Could not change password: '+e.message);}}
+function exportData(){let blob=new Blob([JSON.stringify(bookings,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='BI-Dlux-bookings-backup.json';a.click();URL.revokeObjectURL(url);}
 showCustomer();
+
 </script>
 </body>
 </html>
-
