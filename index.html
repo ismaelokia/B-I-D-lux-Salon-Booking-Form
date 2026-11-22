@@ -5,7 +5,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#171917">
-<title>B&I D'lux Salon | Walk In, Slay Out</title>
+<title>B&I D'LUX SALON | Walk In, Slay Out</title>
 
 <style>
 :root {
@@ -171,18 +171,15 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:25px}
 
 </style>
 
-<link rel="icon" href="B-I-D-lux-Salon.jpg" type="image/jpeg">
-<link rel="apple-touch-icon" href="B-I-D-lux-Salon.jpg">
+<link rel="icon" href="https://ismaelokia.github.io/B-I-D-lux-Salon-Booking-Form/B-I-D-lux-Salon.jpg" type="image/jpeg">
+<link rel="apple-touch-icon" href="https://ismaelokia.github.io/B-I-D-lux-Salon-Booking-Form/B-I-D-lux-Salon.jpg">
 
 </head>
 
-<body>
-
-<iframe id="biBridge" title="Salon booking connection" aria-hidden="true" tabindex="-1" style="display:none;width:0;height:0;border:0"></iframe>
-
+<body cz-shortcut-listen="true">
 <header>
   <div>
-    <div class="brand" id="brand">B&I <span>D'LUX</span> SALON</div>
+    <div class="brand" id="brand">B&amp;I <span>D'LUX</span> SALON</div>
     <div class="motto">WALK IN, SLAY OUT.</div>
   </div>
   <div style="font-size:10px;color:var(--lime)">BOOKING</div>
@@ -191,7 +188,7 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:25px}
 <main>
 <section id="customerPage" class="container">
   <div class="notice">
-    <strong>Before booking:</strong> Please contact B&I D'lux Salon first to discuss your service, hair or material requirements and agree on the labour price. Your appointment is not confirmed until the salon approves it.
+    <strong>Before booking:</strong> Please contact B&amp;I D'lux Salon first to discuss your service, hair or material requirements and agree on the labour price. Your appointment is not confirmed until the salon approves it.
   </div>
 
   <form id="bookingForm">
@@ -201,24 +198,19 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:25px}
 
       <div class="calendar-head">
         <button type="button" id="prevMonth">‹</button>
-        <strong id="monthLabel"></strong>
+        <strong id="monthLabel">November 2026</strong>
         <button type="button" id="nextMonth">›</button>
       </div>
 
-      <div class="calendar-grid" id="calendar">
-        <div class="weekday">Sun</div><div class="weekday">Mon</div>
-        <div class="weekday">Tue</div><div class="weekday">Wed</div>
-        <div class="weekday">Thu</div><div class="weekday">Fri</div>
-        <div class="weekday">Sat</div>
-      </div>
+      <div class="calendar-grid" id="calendar"><div class="weekday">Sun</div><div class="weekday">Mon</div><div class="weekday">Tue</div><div class="weekday">Wed</div><div class="weekday">Thu</div><div class="weekday">Fri</div><div class="weekday">Sat</div><button type="button" class="day past" disabled="" title="Past date">1</button><button type="button" class="day past" disabled="" title="Past date">2</button><button type="button" class="day past" disabled="" title="Past date">3</button><button type="button" class="day past" disabled="" title="Past date">4</button><button type="button" class="day past" disabled="" title="Past date">5</button><button type="button" class="day past" disabled="" title="Past date">6</button><button type="button" class="day past" disabled="" title="Past date">7</button><button type="button" class="day past" disabled="" title="Past date">8</button><button type="button" class="day past" disabled="" title="Past date">9</button><button type="button" class="day past" disabled="" title="Past date">10</button><button type="button" class="day past" disabled="" title="Past date">11</button><button type="button" class="day past" disabled="" title="Past date">12</button><button type="button" class="day past" disabled="" title="Past date">13</button><button type="button" class="day past" disabled="" title="Past date">14</button><button type="button" class="day past" disabled="" title="Past date">15</button><button type="button" class="day past" disabled="" title="Past date">16</button><button type="button" class="day past" disabled="" title="Past date">17</button><button type="button" class="day past" disabled="" title="Past date">18</button><button type="button" class="day past" disabled="" title="Past date">19</button><button type="button" class="day past" disabled="" title="Past date">20</button><button type="button" class="day past" disabled="" title="Past date">21</button><button type="button" class="day available" disabled="" title="Loading availability">22</button><button type="button" class="day available" disabled="" title="Loading availability">23</button><button type="button" class="day available" disabled="" title="Loading availability">24</button><button type="button" class="day available" disabled="" title="Loading availability">25</button><button type="button" class="day available" disabled="" title="Loading availability">26</button><button type="button" class="day available" disabled="" title="Loading availability">27</button><button type="button" class="day available" disabled="" title="Loading availability">28</button><button type="button" class="day available" disabled="" title="Loading availability">29</button><button type="button" class="day available" disabled="" title="Loading availability">30</button></div>
 
       <div class="legend">
         <span><i class="dot available"></i> Available</span>
         <span><i class="dot full"></i> Fully booked</span>
         <span><i class="dot selected"></i> Selected</span>
       </div>
-      <div class="availability-note" id="calendarNote">Select an available date.</div>
-      <input type="hidden" id="selectedDate" required>
+      <div class="availability-note" id="calendarNote">Could not load live availability. Please refresh or try again.</div>
+      <input type="hidden" id="selectedDate" required="">
     </div>
 
     <div class="panel">
@@ -228,27 +220,27 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:25px}
       <div class="grid">
         <div class="field">
           <label for="customerName">Full name *</label>
-          <input id="customerName" required placeholder="Your full name">
+          <input id="customerName" required="" placeholder="Your full name">
         </div>
 
         <div class="field">
           <label for="customerPhone">Phone / WhatsApp number *</label>
-          <input id="customerPhone" required type="tel" placeholder="e.g. 07XXXXXXXX">
+          <input id="customerPhone" required="" type="tel" placeholder="e.g. 07XXXXXXXX">
         </div>
 
         <div class="field full">
           <label for="service">Service requested *</label>
-          <textarea id="service" required placeholder="E.g. knotless braids, makeup, bridal makeup, wig installation, nails, hair treatment or any other service."></textarea>
+          <textarea id="service" required="" placeholder="E.g. knotless braids, makeup, bridal makeup, wig installation, nails, hair treatment or any other service."></textarea>
         </div>
 
         <div class="field">
           <label for="price">Agreed labour price (UGX) *</label>
-          <input id="price" required type="number" min="0" step="1000" placeholder="Enter agreed price">
+          <input id="price" required="" type="number" min="0" step="1000" placeholder="Enter agreed price">
         </div>
 
         <div class="field">
           <label for="time">Available appointment time *</label>
-          <select id="time" required>
+          <select id="time" required="">
             <option value="">Select a date first</option>
           </select>
         </div>
@@ -260,8 +252,8 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:25px}
 
         <div class="field full">
           <div class="check-row">
-            <input type="checkbox" id="discussion" required>
-            <label for="discussion">I confirm that I have contacted B&I D'lux Salon, discussed my requested service and agreed on the labour price entered above.</label>
+            <input type="checkbox" id="discussion" required="">
+            <label for="discussion">I confirm that I have contacted B&amp;I D'lux Salon, discussed my requested service and agreed on the labour price entered above.</label>
           </div>
         </div>
       </div>
@@ -283,12 +275,12 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:25px}
   <div id="loginSection" class="login-box">
     <div class="panel">
       <div class="eyebrow">PRIVATE OWNER ACCESS</div>
-      <h2 id="loginTitle">Owner verification</h2>
+      <h2 id="loginTitle">Admin verification</h2>
       <p class="sub" id="loginDescription">Enter your private Admin password to continue.</p>
       <form id="loginForm">
         <div class="field">
           <label id="loginLabel" for="loginInput">Admin password</label>
-          <input id="loginInput" type="password" required autocomplete="off" placeholder="Enter Admin password">
+          <input id="loginInput" type="password" required="" autocomplete="off" placeholder="Enter Admin password">
         </div>
         <button class="primary" id="loginButton">LOGIN</button>
       </form>
@@ -365,27 +357,27 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:25px}
           <div class="grid">
             <div class="field">
               <label>Customer name *</label>
-              <input id="mName" required>
+              <input id="mName" required="">
             </div>
             <div class="field">
               <label>Phone number *</label>
-              <input id="mPhone" required type="tel">
+              <input id="mPhone" required="" type="tel">
             </div>
             <div class="field full">
               <label>Service requested *</label>
-              <textarea id="mService" required></textarea>
+              <textarea id="mService" required=""></textarea>
             </div>
             <div class="field">
               <label>Labour price (UGX) *</label>
-              <input id="mPrice" required type="number" min="0">
+              <input id="mPrice" required="" type="number" min="0">
             </div>
             <div class="field">
               <label>Appointment date *</label>
-              <input id="mDate" required type="date">
+              <input id="mDate" required="" type="date" min="2026-11-22">
             </div>
             <div class="field">
               <label>Appointment time *</label>
-              <select id="mTime" required><option value="">Select date first</option></select>
+              <select id="mTime" required=""><option value="">Select date first</option></select>
             </div>
             <div class="field">
               <label>Status</label>
@@ -431,16 +423,11 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:25px}
 
 </main>
 
-<footer>B&I D'LUX SALON · WALK IN, SLAY OUT.</footer>
+<footer>B&amp;I D'LUX SALON · WALK IN, SLAY OUT.</footer>
 
 <script>
 'use strict';
 
-const BRIDGE_URL = 'https://script.google.com/macros/s/AKfycbzXUEdcgPLrBtWGFsIw5qUEeMPH6BafXaZinOBmdPvcg3r08z0jLOiIr681Q1XTXEI_/exec';
-const BRIDGE_ORIGIN = '*';
-const bridgeFrame = document.getElementById('biBridge');
-let requestNumber = 0;
-const pendingRequests = new Map();
 let bookings = [];
 let settings = { whatsapp: '' };
 let loggedIn = false;
@@ -453,40 +440,59 @@ let selectedAvailability = null;
 
 function $(id) { return document.getElementById(id); }
 
-// Wait until the hidden Apps Script frame has loaded before sending requests.
-let bridgeReadyResolve;
-const bridgeReady = new Promise(resolve => { bridgeReadyResolve = resolve; });
-bridgeFrame.addEventListener('load', () => bridgeReadyResolve(true));
-
+// The website and backend now run in the same Apps Script project.
+// No hidden iframe or cross-origin postMessage connection is required.
 function apiRequest(action, payload = {}) {
-  return bridgeReady.then(() => new Promise((resolve, reject) => {
-    const requestId = 'bi-' + Date.now() + '-' + (++requestNumber);
-    const timeout = setTimeout(() => {
-      pendingRequests.delete(requestId);
-      reject(new Error('The salon server did not respond. Please try again.'));
-    }, 30000);
-    pendingRequests.set(requestId, { resolve, reject, timeout });
-    bridgeFrame.contentWindow.postMessage({
-      source: 'BI_SALON_WEBSITE', requestId, action, payload
-    }, BRIDGE_ORIGIN);
-  }));
+  return new Promise((resolve, reject) => {
+    const runner = google.script.run
+      .withSuccessHandler(resolve)
+      .withFailureHandler(error => {
+        reject(new Error(error && error.message ? error.message : 'The salon server could not complete the request.'));
+      });
+
+    try {
+      switch (action) {
+        case 'submitBooking':
+          runner.apiSubmitBooking(payload.booking);
+          break;
+        case 'adminAddBooking':
+          runner.apiAdminAddBooking(payload.token, payload.booking);
+          break;
+        case 'getAvailability':
+          runner.apiGetPublicAvailability(payload.date);
+          break;
+        case 'getMonthAvailability':
+          runner.apiGetMonthAvailability(payload.year, payload.month);
+          break;
+        case 'login':
+          runner.apiAdminLogin(payload.password);
+          break;
+        case 'listBookings':
+          runner.apiAdminListBookings(payload.token);
+          break;
+        case 'updateBooking':
+          runner.apiAdminUpdateBooking(payload.token, payload.id, payload.changes);
+          break;
+        case 'deleteBooking':
+          runner.apiAdminDeleteBooking(payload.token, payload.id);
+          break;
+        case 'getSettings':
+          runner.apiGetSettings(payload.token);
+          break;
+        case 'saveSettings':
+          runner.apiSaveSettings(payload.token, payload.settings);
+          break;
+        case 'changePassword':
+          runner.apiChangeAdminPassword(payload.token, payload.newPassword);
+          break;
+        default:
+          reject(new Error('Unknown booking request.'));
+      }
+    } catch (error) {
+      reject(error);
+    }
+  });
 }
-
-window.addEventListener('message', event => {
-  if (event.source !== bridgeFrame.contentWindow) return;
-  if (!(event.origin === 'https://script.google.com' ||
-        event.origin.endsWith('.googleusercontent.com'))) return;
-  const message = event.data;
-  if (!message || message.source !== 'BI_SALON_BRIDGE' ||
-      !pendingRequests.has(message.requestId)) return;
-  const request = pendingRequests.get(message.requestId);
-  pendingRequests.delete(message.requestId);
-  clearTimeout(request.timeout);
-  if (message.error) request.reject(new Error(message.error));
-  else request.resolve(message.result);
-});
-
-bridgeFrame.src = BRIDGE_URL;
 
 function escapeHTML(value) {
   return String(value ?? '').replace(/[&<>"']/g, c => ({
@@ -517,7 +523,15 @@ function occupiedTimes(date, excludeId = null) {
 function normalizeTime(value) {
   const s = String(value || '').trim();
   const m = s.match(/^(\d{1,2}):(\d{2})$/);
-  return m ? String(Number(m[1])).padStart(2, '0') + ':' + m[2] : s;
+  if (m) return String(Number(m[1])).padStart(2, '0') + ':' + m[2];
+  if (/^\d{1,4}$/.test(s)) {
+    const total = Number(s);
+    if (total >= 0 && total <= 1439) {
+      return String(Math.floor(total / 60)).padStart(2, '0') + ':' +
+        String(total % 60).padStart(2, '0');
+    }
+  }
+  return s;
 }
 function availableTimes(date, excludeId = null) {
   if (!date) return [];
@@ -1033,5 +1047,6 @@ $('loginButton').textContent = 'LOGIN';
 
 showCustomer();
 </script>
+
+
 </body>
-</html>
